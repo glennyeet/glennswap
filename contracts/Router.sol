@@ -4,7 +4,7 @@
 
 pragma solidity =0.6.6;
 
-interface IGlennSwapV2Factory {
+interface IUniswapV2Factory {
     event PairCreated(
         address indexed token0,
         address indexed token1,
@@ -35,7 +35,7 @@ interface IGlennSwapV2Factory {
     function setFeeToSetter(address) external;
 }
 
-interface IGlennSwapV2Pair {
+interface IUniswapV2Pair {
     event Approval(address indexed owner, address indexed spender, uint value);
     event Transfer(address indexed from, address indexed to, uint value);
 
@@ -134,7 +134,7 @@ interface IGlennSwapV2Pair {
     function initialize(address, address) external;
 }
 
-interface IGlennSwapV2Router01 {
+interface IUniswapV2Router01 {
     function factory() external pure returns (address);
 
     function WETH() external pure returns (address);
@@ -283,7 +283,7 @@ interface IGlennSwapV2Router01 {
     ) external view returns (uint[] memory amounts);
 }
 
-interface IGlennSwapV2Router02 is IGlennSwapV2Router01 {
+interface IUniswapV2Router02 is IUniswapV2Router01 {
     function removeLiquidityETHSupportingFeeOnTransferTokens(
         address token,
         uint liquidity,
@@ -368,14 +368,14 @@ interface IWETH {
     function withdraw(uint) external;
 }
 
-contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
+contract GlennSwapRouter02 is IUniswapV2Router02 {
     using SafeMath for uint;
 
     address public immutable override factory;
     address public immutable override WETH;
 
     modifier ensure(uint deadline) {
-        require(deadline >= block.timestamp, "GlennSwapV2Router: EXPIRED");
+        require(deadline >= block.timestamp, "GlennSwapRouter: EXPIRED");
         _;
     }
 
@@ -398,10 +398,10 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
         uint amountBMin
     ) internal virtual returns (uint amountA, uint amountB) {
         // create the pair if it doesn't exist yet
-        if (IGlennSwapV2Factory(factory).getPair(tokenA, tokenB) == address(0)) {
-            IGlennSwapV2Factory(factory).createPair(tokenA, tokenB);
+        if (IUniswapV2Factory(factory).getPair(tokenA, tokenB) == address(0)) {
+            IUniswapV2Factory(factory).createPair(tokenA, tokenB);
         }
-        (uint reserveA, uint reserveB) = GlennSwapV2Library.getReserves(
+        (uint reserveA, uint reserveB) = GlennSwapLibrary.getReserves(
             factory,
             tokenA,
             tokenB
@@ -409,7 +409,7 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
         if (reserveA == 0 && reserveB == 0) {
             (amountA, amountB) = (amountADesired, amountBDesired);
         } else {
-            uint amountBOptimal = GlennSwapV2Library.quote(
+            uint amountBOptimal = GlennSwapLibrary.quote(
                 amountADesired,
                 reserveA,
                 reserveB
@@ -417,11 +417,11 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
             if (amountBOptimal <= amountBDesired) {
                 require(
                     amountBOptimal >= amountBMin,
-                    "GlennSwapV2Router: INSUFFICIENT_B_AMOUNT"
+                    "GlennSwapRouter: INSUFFICIENT_B_AMOUNT"
                 );
                 (amountA, amountB) = (amountADesired, amountBOptimal);
             } else {
-                uint amountAOptimal = GlennSwapV2Library.quote(
+                uint amountAOptimal = GlennSwapLibrary.quote(
                     amountBDesired,
                     reserveB,
                     reserveA
@@ -429,7 +429,7 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
                 assert(amountAOptimal <= amountADesired);
                 require(
                     amountAOptimal >= amountAMin,
-                    "GlennSwapV2Router: INSUFFICIENT_A_AMOUNT"
+                    "GlennSwapRouter: INSUFFICIENT_A_AMOUNT"
                 );
                 (amountA, amountB) = (amountAOptimal, amountBDesired);
             }
@@ -460,10 +460,10 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
             amountAMin,
             amountBMin
         );
-        address pair = GlennSwapV2Library.pairFor(factory, tokenA, tokenB);
+        address pair = GlennSwapLibrary.pairFor(factory, tokenA, tokenB);
         TransferHelper.safeTransferFrom(tokenA, msg.sender, pair, amountA);
         TransferHelper.safeTransferFrom(tokenB, msg.sender, pair, amountB);
-        liquidity = IGlennSwapV2Pair(pair).mint(to);
+        liquidity = IUniswapV2Pair(pair).mint(to);
     }
 
     function addLiquidityETH(
@@ -489,11 +489,11 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
             amountTokenMin,
             amountETHMin
         );
-        address pair = GlennSwapV2Library.pairFor(factory, token, WETH);
+        address pair = GlennSwapLibrary.pairFor(factory, token, WETH);
         TransferHelper.safeTransferFrom(token, msg.sender, pair, amountToken);
         IWETH(WETH).deposit{value: amountETH}();
         assert(IWETH(WETH).transfer(pair, amountETH));
-        liquidity = IGlennSwapV2Pair(pair).mint(to);
+        liquidity = IUniswapV2Pair(pair).mint(to);
         // refund dust eth, if any
         if (msg.value > amountETH)
             TransferHelper.safeTransferETH(msg.sender, msg.value - amountETH);
@@ -515,20 +515,20 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
         ensure(deadline)
         returns (uint amountA, uint amountB)
     {
-        address pair = GlennSwapV2Library.pairFor(factory, tokenA, tokenB);
-        IGlennSwapV2Pair(pair).transferFrom(msg.sender, pair, liquidity); // send liquidity to pair
-        (uint amount0, uint amount1) = IGlennSwapV2Pair(pair).burn(to);
-        (address token0, ) = GlennSwapV2Library.sortTokens(tokenA, tokenB);
+        address pair = GlennSwapLibrary.pairFor(factory, tokenA, tokenB);
+        IUniswapV2Pair(pair).transferFrom(msg.sender, pair, liquidity); // send liquidity to pair
+        (uint amount0, uint amount1) = IUniswapV2Pair(pair).burn(to);
+        (address token0, ) = GlennSwapLibrary.sortTokens(tokenA, tokenB);
         (amountA, amountB) = tokenA == token0
             ? (amount0, amount1)
             : (amount1, amount0);
         require(
             amountA >= amountAMin,
-            "GlennSwapV2Router: INSUFFICIENT_A_AMOUNT"
+            "GlennSwapRouter: INSUFFICIENT_A_AMOUNT"
         );
         require(
             amountB >= amountBMin,
-            "GlennSwapV2Router: INSUFFICIENT_B_AMOUNT"
+            "GlennSwapRouter: INSUFFICIENT_B_AMOUNT"
         );
     }
 
@@ -573,9 +573,9 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
         bytes32 r,
         bytes32 s
     ) external virtual override returns (uint amountA, uint amountB) {
-        address pair = GlennSwapV2Library.pairFor(factory, tokenA, tokenB);
+        address pair = GlennSwapLibrary.pairFor(factory, tokenA, tokenB);
         uint value = approveMax ? uint(-1) : liquidity;
-        IGlennSwapV2Pair(pair).permit(
+        IUniswapV2Pair(pair).permit(
             msg.sender,
             address(this),
             value,
@@ -607,9 +607,9 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
         bytes32 r,
         bytes32 s
     ) external virtual override returns (uint amountToken, uint amountETH) {
-        address pair = GlennSwapV2Library.pairFor(factory, token, WETH);
+        address pair = GlennSwapLibrary.pairFor(factory, token, WETH);
         uint value = approveMax ? uint(-1) : liquidity;
-        IGlennSwapV2Pair(pair).permit(
+        IUniswapV2Pair(pair).permit(
             msg.sender,
             address(this),
             value,
@@ -667,9 +667,9 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
         bytes32 r,
         bytes32 s
     ) external virtual override returns (uint amountETH) {
-        address pair = GlennSwapV2Library.pairFor(factory, token, WETH);
+        address pair = GlennSwapLibrary.pairFor(factory, token, WETH);
         uint value = approveMax ? uint(-1) : liquidity;
-        IGlennSwapV2Pair(pair).permit(
+        IUniswapV2Pair(pair).permit(
             msg.sender,
             address(this),
             value,
@@ -697,15 +697,15 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
     ) internal virtual {
         for (uint i; i < path.length - 1; i++) {
             (address input, address output) = (path[i], path[i + 1]);
-            (address token0, ) = GlennSwapV2Library.sortTokens(input, output);
+            (address token0, ) = GlennSwapLibrary.sortTokens(input, output);
             uint amountOut = amounts[i + 1];
             (uint amount0Out, uint amount1Out) = input == token0
                 ? (uint(0), amountOut)
                 : (amountOut, uint(0));
             address to = i < path.length - 2
-                ? GlennSwapV2Library.pairFor(factory, output, path[i + 2])
+                ? GlennSwapLibrary.pairFor(factory, output, path[i + 2])
                 : _to;
-            IGlennSwapV2Pair(GlennSwapV2Library.pairFor(factory, input, output))
+            IUniswapV2Pair(GlennSwapLibrary.pairFor(factory, input, output))
                 .swap(amount0Out, amount1Out, to, new bytes(0));
         }
     }
@@ -723,15 +723,15 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
         ensure(deadline)
         returns (uint[] memory amounts)
     {
-        amounts = GlennSwapV2Library.getAmountsOut(factory, amountIn, path);
+        amounts = GlennSwapLibrary.getAmountsOut(factory, amountIn, path);
         require(
             amounts[amounts.length - 1] >= amountOutMin,
-            "GlennSwapV2Router: INSUFFICIENT_OUTPUT_AMOUNT"
+            "GlennSwapRouter: INSUFFICIENT_OUTPUT_AMOUNT"
         );
         TransferHelper.safeTransferFrom(
             path[0],
             msg.sender,
-            GlennSwapV2Library.pairFor(factory, path[0], path[1]),
+            GlennSwapLibrary.pairFor(factory, path[0], path[1]),
             amounts[0]
         );
         _swap(amounts, path, to);
@@ -750,15 +750,15 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
         ensure(deadline)
         returns (uint[] memory amounts)
     {
-        amounts = GlennSwapV2Library.getAmountsIn(factory, amountOut, path);
+        amounts = GlennSwapLibrary.getAmountsIn(factory, amountOut, path);
         require(
             amounts[0] <= amountInMax,
-            "GlennSwapV2Router: EXCESSIVE_INPUT_AMOUNT"
+            "GlennSwapRouter: EXCESSIVE_INPUT_AMOUNT"
         );
         TransferHelper.safeTransferFrom(
             path[0],
             msg.sender,
-            GlennSwapV2Library.pairFor(factory, path[0], path[1]),
+            GlennSwapLibrary.pairFor(factory, path[0], path[1]),
             amounts[0]
         );
         _swap(amounts, path, to);
@@ -777,16 +777,16 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
         ensure(deadline)
         returns (uint[] memory amounts)
     {
-        require(path[0] == WETH, "GlennSwapV2Router: INVALID_PATH");
-        amounts = GlennSwapV2Library.getAmountsOut(factory, msg.value, path);
+        require(path[0] == WETH, "GlennSwapRouter: INVALID_PATH");
+        amounts = GlennSwapLibrary.getAmountsOut(factory, msg.value, path);
         require(
             amounts[amounts.length - 1] >= amountOutMin,
-            "GlennSwapV2Router: INSUFFICIENT_OUTPUT_AMOUNT"
+            "GlennSwapRouter: INSUFFICIENT_OUTPUT_AMOUNT"
         );
         IWETH(WETH).deposit{value: amounts[0]}();
         assert(
             IWETH(WETH).transfer(
-                GlennSwapV2Library.pairFor(factory, path[0], path[1]),
+                GlennSwapLibrary.pairFor(factory, path[0], path[1]),
                 amounts[0]
             )
         );
@@ -806,16 +806,16 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
         ensure(deadline)
         returns (uint[] memory amounts)
     {
-        require(path[path.length - 1] == WETH, "GlennSwapV2Router: INVALID_PATH");
-        amounts = GlennSwapV2Library.getAmountsIn(factory, amountOut, path);
+        require(path[path.length - 1] == WETH, "GlennSwapRouter: INVALID_PATH");
+        amounts = GlennSwapLibrary.getAmountsIn(factory, amountOut, path);
         require(
             amounts[0] <= amountInMax,
-            "GlennSwapV2Router: EXCESSIVE_INPUT_AMOUNT"
+            "GlennSwapRouter: EXCESSIVE_INPUT_AMOUNT"
         );
         TransferHelper.safeTransferFrom(
             path[0],
             msg.sender,
-            GlennSwapV2Library.pairFor(factory, path[0], path[1]),
+            GlennSwapLibrary.pairFor(factory, path[0], path[1]),
             amounts[0]
         );
         _swap(amounts, path, address(this));
@@ -836,16 +836,16 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
         ensure(deadline)
         returns (uint[] memory amounts)
     {
-        require(path[path.length - 1] == WETH, "GlennSwapV2Router: INVALID_PATH");
-        amounts = GlennSwapV2Library.getAmountsOut(factory, amountIn, path);
+        require(path[path.length - 1] == WETH, "GlennSwapRouter: INVALID_PATH");
+        amounts = GlennSwapLibrary.getAmountsOut(factory, amountIn, path);
         require(
             amounts[amounts.length - 1] >= amountOutMin,
-            "GlennSwapV2Router: INSUFFICIENT_OUTPUT_AMOUNT"
+            "GlennSwapRouter: INSUFFICIENT_OUTPUT_AMOUNT"
         );
         TransferHelper.safeTransferFrom(
             path[0],
             msg.sender,
-            GlennSwapV2Library.pairFor(factory, path[0], path[1]),
+            GlennSwapLibrary.pairFor(factory, path[0], path[1]),
             amounts[0]
         );
         _swap(amounts, path, address(this));
@@ -866,16 +866,16 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
         ensure(deadline)
         returns (uint[] memory amounts)
     {
-        require(path[0] == WETH, "GlennSwapV2Router: INVALID_PATH");
-        amounts = GlennSwapV2Library.getAmountsIn(factory, amountOut, path);
+        require(path[0] == WETH, "GlennSwapRouter: INVALID_PATH");
+        amounts = GlennSwapLibrary.getAmountsIn(factory, amountOut, path);
         require(
             amounts[0] <= msg.value,
-            "GlennSwapV2Router: EXCESSIVE_INPUT_AMOUNT"
+            "GlennSwapRouter: EXCESSIVE_INPUT_AMOUNT"
         );
         IWETH(WETH).deposit{value: amounts[0]}();
         assert(
             IWETH(WETH).transfer(
-                GlennSwapV2Library.pairFor(factory, path[0], path[1]),
+                GlennSwapLibrary.pairFor(factory, path[0], path[1]),
                 amounts[0]
             )
         );
@@ -893,9 +893,9 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
     ) internal virtual {
         for (uint i; i < path.length - 1; i++) {
             (address input, address output) = (path[i], path[i + 1]);
-            (address token0, ) = GlennSwapV2Library.sortTokens(input, output);
-            IGlennSwapV2Pair pair = IGlennSwapV2Pair(
-                GlennSwapV2Library.pairFor(factory, input, output)
+            (address token0, ) = GlennSwapLibrary.sortTokens(input, output);
+            IUniswapV2Pair pair = IUniswapV2Pair(
+                GlennSwapLibrary.pairFor(factory, input, output)
             );
             uint amountInput;
             uint amountOutput;
@@ -908,7 +908,7 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
                 amountInput = IERC20(input).balanceOf(address(pair)).sub(
                     reserveInput
                 );
-                amountOutput = GlennSwapV2Library.getAmountOut(
+                amountOutput = GlennSwapLibrary.getAmountOut(
                     amountInput,
                     reserveInput,
                     reserveOutput
@@ -918,7 +918,7 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
                 ? (uint(0), amountOutput)
                 : (amountOutput, uint(0));
             address to = i < path.length - 2
-                ? GlennSwapV2Library.pairFor(factory, output, path[i + 2])
+                ? GlennSwapLibrary.pairFor(factory, output, path[i + 2])
                 : _to;
             pair.swap(amount0Out, amount1Out, to, new bytes(0));
         }
@@ -934,7 +934,7 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
         TransferHelper.safeTransferFrom(
             path[0],
             msg.sender,
-            GlennSwapV2Library.pairFor(factory, path[0], path[1]),
+            GlennSwapLibrary.pairFor(factory, path[0], path[1]),
             amountIn
         );
         uint balanceBefore = IERC20(path[path.length - 1]).balanceOf(to);
@@ -942,7 +942,7 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
         require(
             IERC20(path[path.length - 1]).balanceOf(to).sub(balanceBefore) >=
                 amountOutMin,
-            "GlennSwapV2Router: INSUFFICIENT_OUTPUT_AMOUNT"
+            "GlennSwapRouter: INSUFFICIENT_OUTPUT_AMOUNT"
         );
     }
 
@@ -952,12 +952,12 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
         address to,
         uint deadline
     ) external payable virtual override ensure(deadline) {
-        require(path[0] == WETH, "GlennSwapV2Router: INVALID_PATH");
+        require(path[0] == WETH, "GlennSwapRouter: INVALID_PATH");
         uint amountIn = msg.value;
         IWETH(WETH).deposit{value: amountIn}();
         assert(
             IWETH(WETH).transfer(
-                GlennSwapV2Library.pairFor(factory, path[0], path[1]),
+                GlennSwapLibrary.pairFor(factory, path[0], path[1]),
                 amountIn
             )
         );
@@ -966,7 +966,7 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
         require(
             IERC20(path[path.length - 1]).balanceOf(to).sub(balanceBefore) >=
                 amountOutMin,
-            "GlennSwapV2Router: INSUFFICIENT_OUTPUT_AMOUNT"
+            "GlennSwapRouter: INSUFFICIENT_OUTPUT_AMOUNT"
         );
     }
 
@@ -977,18 +977,18 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
         address to,
         uint deadline
     ) external virtual override ensure(deadline) {
-        require(path[path.length - 1] == WETH, "GlennSwapV2Router: INVALID_PATH");
+        require(path[path.length - 1] == WETH, "GlennSwapRouter: INVALID_PATH");
         TransferHelper.safeTransferFrom(
             path[0],
             msg.sender,
-            GlennSwapV2Library.pairFor(factory, path[0], path[1]),
+            GlennSwapLibrary.pairFor(factory, path[0], path[1]),
             amountIn
         );
         _swapSupportingFeeOnTransferTokens(path, address(this));
         uint amountOut = IERC20(WETH).balanceOf(address(this));
         require(
             amountOut >= amountOutMin,
-            "GlennSwapV2Router: INSUFFICIENT_OUTPUT_AMOUNT"
+            "GlennSwapRouter: INSUFFICIENT_OUTPUT_AMOUNT"
         );
         IWETH(WETH).withdraw(amountOut);
         TransferHelper.safeTransferETH(to, amountOut);
@@ -1000,7 +1000,7 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
         uint reserveA,
         uint reserveB
     ) public pure virtual override returns (uint amountB) {
-        return GlennSwapV2Library.quote(amountA, reserveA, reserveB);
+        return GlennSwapLibrary.quote(amountA, reserveA, reserveB);
     }
 
     function getAmountOut(
@@ -1008,7 +1008,7 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
         uint reserveIn,
         uint reserveOut
     ) public pure virtual override returns (uint amountOut) {
-        return GlennSwapV2Library.getAmountOut(amountIn, reserveIn, reserveOut);
+        return GlennSwapLibrary.getAmountOut(amountIn, reserveIn, reserveOut);
     }
 
     function getAmountIn(
@@ -1016,21 +1016,21 @@ contract GlennSwapV2Router02 is IGlennSwapV2Router02 {
         uint reserveIn,
         uint reserveOut
     ) public pure virtual override returns (uint amountIn) {
-        return GlennSwapV2Library.getAmountIn(amountOut, reserveIn, reserveOut);
+        return GlennSwapLibrary.getAmountIn(amountOut, reserveIn, reserveOut);
     }
 
     function getAmountsOut(
         uint amountIn,
         address[] memory path
     ) public view virtual override returns (uint[] memory amounts) {
-        return GlennSwapV2Library.getAmountsOut(factory, amountIn, path);
+        return GlennSwapLibrary.getAmountsOut(factory, amountIn, path);
     }
 
     function getAmountsIn(
         uint amountOut,
         address[] memory path
     ) public view virtual override returns (uint[] memory amounts) {
-        return GlennSwapV2Library.getAmountsIn(factory, amountOut, path);
+        return GlennSwapLibrary.getAmountsIn(factory, amountOut, path);
     }
 }
 
@@ -1050,7 +1050,7 @@ library SafeMath {
     }
 }
 
-library GlennSwapV2Library {
+library GlennSwapLibrary {
     using SafeMath for uint;
 
     // returns sorted token addresses, used to handle return values from pairs sorted in this order
@@ -1058,11 +1058,11 @@ library GlennSwapV2Library {
         address tokenA,
         address tokenB
     ) internal pure returns (address token0, address token1) {
-        require(tokenA != tokenB, "GlennSwapV2Library: IDENTICAL_ADDRESSES");
+        require(tokenA != tokenB, "GlennSwapLibrary: IDENTICAL_ADDRESSES");
         (token0, token1) = tokenA < tokenB
             ? (tokenA, tokenB)
             : (tokenB, tokenA);
-        require(token0 != address(0), "GlennSwapV2Library: ZERO_ADDRESS");
+        require(token0 != address(0), "GlennSwapLibrary: ZERO_ADDRESS");
     }
 
     // calculates the CREATE2 address for a pair without making any external calls
@@ -1079,7 +1079,7 @@ library GlennSwapV2Library {
                         hex"ff",
                         factory,
                         keccak256(abi.encodePacked(token0, token1)),
-                        hex"a14067c12694540a5bf254a11a5596ead4b390351a6ebc0ced14e0f015bff5ef" // init code hash
+                        hex"fffcdaa6ec3cc2a3623da1f1f40b1840403d07d2954ae0329467b137b1579a69" // init code hash
                     )
                 )
             )
@@ -1093,7 +1093,7 @@ library GlennSwapV2Library {
         address tokenB
     ) internal view returns (uint reserveA, uint reserveB) {
         (address token0, ) = sortTokens(tokenA, tokenB);
-        (uint reserve0, uint reserve1, ) = IGlennSwapV2Pair(
+        (uint reserve0, uint reserve1, ) = IUniswapV2Pair(
             pairFor(factory, tokenA, tokenB)
         ).getReserves();
         (reserveA, reserveB) = tokenA == token0
@@ -1107,10 +1107,10 @@ library GlennSwapV2Library {
         uint reserveA,
         uint reserveB
     ) internal pure returns (uint amountB) {
-        require(amountA > 0, "GlennSwapV2Library: INSUFFICIENT_AMOUNT");
+        require(amountA > 0, "GlennSwapLibrary: INSUFFICIENT_AMOUNT");
         require(
             reserveA > 0 && reserveB > 0,
-            "GlennSwapV2Library: INSUFFICIENT_LIQUIDITY"
+            "GlennSwapLibrary: INSUFFICIENT_LIQUIDITY"
         );
         amountB = amountA.mul(reserveB) / reserveA;
     }
@@ -1121,10 +1121,10 @@ library GlennSwapV2Library {
         uint reserveIn,
         uint reserveOut
     ) internal pure returns (uint amountOut) {
-        require(amountIn > 0, "GlennSwapV2Library: INSUFFICIENT_INPUT_AMOUNT");
+        require(amountIn > 0, "GlennSwapLibrary: INSUFFICIENT_INPUT_AMOUNT");
         require(
             reserveIn > 0 && reserveOut > 0,
-            "GlennSwapV2Library: INSUFFICIENT_LIQUIDITY"
+            "GlennSwapLibrary: INSUFFICIENT_LIQUIDITY"
         );
         uint amountInWithFee = amountIn.mul(997);
         uint numerator = amountInWithFee.mul(reserveOut);
@@ -1138,10 +1138,10 @@ library GlennSwapV2Library {
         uint reserveIn,
         uint reserveOut
     ) internal pure returns (uint amountIn) {
-        require(amountOut > 0, "GlennSwapV2Library: INSUFFICIENT_OUTPUT_AMOUNT");
+        require(amountOut > 0, "GlennSwapLibrary: INSUFFICIENT_OUTPUT_AMOUNT");
         require(
             reserveIn > 0 && reserveOut > 0,
-            "GlennSwapV2Library: INSUFFICIENT_LIQUIDITY"
+            "GlennSwapLibrary: INSUFFICIENT_LIQUIDITY"
         );
         uint numerator = reserveIn.mul(amountOut).mul(1000);
         uint denominator = reserveOut.sub(amountOut).mul(997);
@@ -1154,7 +1154,7 @@ library GlennSwapV2Library {
         uint amountIn,
         address[] memory path
     ) internal view returns (uint[] memory amounts) {
-        require(path.length >= 2, "GlennSwapV2Library: INVALID_PATH");
+        require(path.length >= 2, "GlennSwapLibrary: INVALID_PATH");
         amounts = new uint[](path.length);
         amounts[0] = amountIn;
         for (uint i; i < path.length - 1; i++) {
@@ -1173,7 +1173,7 @@ library GlennSwapV2Library {
         uint amountOut,
         address[] memory path
     ) internal view returns (uint[] memory amounts) {
-        require(path.length >= 2, "GlennSwapV2Library: INVALID_PATH");
+        require(path.length >= 2, "GlennSwapLibrary: INVALID_PATH");
         amounts = new uint[](path.length);
         amounts[amounts.length - 1] = amountOut;
         for (uint i = path.length - 1; i > 0; i--) {

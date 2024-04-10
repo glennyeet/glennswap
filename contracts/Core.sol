@@ -4,7 +4,7 @@
 
 pragma solidity =0.5.16;
 
-interface IGlennSwapV2Factory {
+interface IUniswapV2Factory {
     event PairCreated(
         address indexed token0,
         address indexed token1,
@@ -35,7 +35,7 @@ interface IGlennSwapV2Factory {
     function setFeeToSetter(address) external;
 }
 
-interface IGlennSwapV2Pair {
+interface IUniswapV2Pair {
     event Approval(address indexed owner, address indexed spender, uint value);
     event Transfer(address indexed from, address indexed to, uint value);
 
@@ -134,7 +134,7 @@ interface IGlennSwapV2Pair {
     function initialize(address, address) external;
 }
 
-interface IGlennSwapV2ERC20 {
+interface IUniswapV2ERC20 {
     event Approval(address indexed owner, address indexed spender, uint value);
     event Transfer(address indexed from, address indexed to, uint value);
 
@@ -210,8 +210,8 @@ interface IERC20 {
     ) external returns (bool);
 }
 
-interface IGlennSwapV2Callee {
-    function glennSwapV2Call(
+interface IUniswapV2Callee {
+    function GlennSwapCall(
         address sender,
         uint amount0,
         uint amount1,
@@ -219,7 +219,7 @@ interface IGlennSwapV2Callee {
     ) external;
 }
 
-contract GlennSwapV2ERC20 is IGlennSwapV2ERC20 {
+contract GlennSwapERC20 is IUniswapV2ERC20 {
     using SafeMath for uint;
 
     string public constant name = "GlennSwap V2";
@@ -312,7 +312,7 @@ contract GlennSwapV2ERC20 is IGlennSwapV2ERC20 {
         bytes32 r,
         bytes32 s
     ) external {
-        require(deadline >= block.timestamp, "GlennSwapV2: EXPIRED");
+        require(deadline >= block.timestamp, "GlennSwap: EXPIRED");
         bytes32 digest = keccak256(
             abi.encodePacked(
                 "\x19\x01",
@@ -332,13 +332,13 @@ contract GlennSwapV2ERC20 is IGlennSwapV2ERC20 {
         address recoveredAddress = ecrecover(digest, v, r, s);
         require(
             recoveredAddress != address(0) && recoveredAddress == owner,
-            "GlennSwapV2: INVALID_SIGNATURE"
+            "GlennSwap: INVALID_SIGNATURE"
         );
         _approve(owner, spender, value);
     }
 }
 
-contract GlennSwapV2Pair is IGlennSwapV2Pair, GlennSwapV2ERC20 {
+contract GlennSwapPair is IUniswapV2Pair, GlennSwapERC20 {
     using SafeMath for uint;
     using UQ112x112 for uint224;
 
@@ -360,7 +360,7 @@ contract GlennSwapV2Pair is IGlennSwapV2Pair, GlennSwapV2ERC20 {
 
     uint private unlocked = 1;
     modifier lock() {
-        require(unlocked == 1, "GlennSwapV2: LOCKED");
+        require(unlocked == 1, "GlennSwap: LOCKED");
         unlocked = 0;
         _;
         unlocked = 1;
@@ -386,7 +386,7 @@ contract GlennSwapV2Pair is IGlennSwapV2Pair, GlennSwapV2ERC20 {
         );
         require(
             success && (data.length == 0 || abi.decode(data, (bool))),
-            "GlennSwapV2: TRANSFER_FAILED"
+            "GlennSwap: TRANSFER_FAILED"
         );
     }
 
@@ -413,7 +413,7 @@ contract GlennSwapV2Pair is IGlennSwapV2Pair, GlennSwapV2ERC20 {
 
     // called once by the factory at time of deployment
     function initialize(address _token0, address _token1) external {
-        require(msg.sender == factory, "GlennSwapV2: FORBIDDEN"); // sufficient check
+        require(msg.sender == factory, "GlennSwap: FORBIDDEN"); // sufficient check
         token0 = _token0;
         token1 = _token1;
     }
@@ -427,7 +427,7 @@ contract GlennSwapV2Pair is IGlennSwapV2Pair, GlennSwapV2ERC20 {
     ) private {
         require(
             balance0 <= uint112(-1) && balance1 <= uint112(-1),
-            "GlennSwapV2: OVERFLOW"
+            "GlennSwap: OVERFLOW"
         );
         uint32 blockTimestamp = uint32(block.timestamp % 2 ** 32);
         uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
@@ -451,7 +451,7 @@ contract GlennSwapV2Pair is IGlennSwapV2Pair, GlennSwapV2ERC20 {
         uint112 _reserve0,
         uint112 _reserve1
     ) private returns (bool feeOn) {
-        address feeTo = IGlennSwapV2Factory(factory).feeTo();
+        address feeTo = IUniswapV2Factory(factory).feeTo();
         feeOn = feeTo != address(0);
         uint _kLast = kLast; // gas savings
         if (feeOn) {
@@ -489,7 +489,7 @@ contract GlennSwapV2Pair is IGlennSwapV2Pair, GlennSwapV2ERC20 {
                 amount1.mul(_totalSupply) / _reserve1
             );
         }
-        require(liquidity > 0, "GlennSwapV2: INSUFFICIENT_LIQUIDITY_MINTED");
+        require(liquidity > 0, "GlennSwap: INSUFFICIENT_LIQUIDITY_MINTED");
         _mint(to, liquidity);
 
         _update(balance0, balance1, _reserve0, _reserve1);
@@ -514,7 +514,7 @@ contract GlennSwapV2Pair is IGlennSwapV2Pair, GlennSwapV2ERC20 {
         amount1 = liquidity.mul(balance1) / _totalSupply; // using balances ensures pro-rata distribution
         require(
             amount0 > 0 && amount1 > 0,
-            "GlennSwapV2: INSUFFICIENT_LIQUIDITY_BURNED"
+            "GlennSwap: INSUFFICIENT_LIQUIDITY_BURNED"
         );
         _burn(address(this), liquidity);
         _safeTransfer(_token0, to, amount0);
@@ -536,12 +536,12 @@ contract GlennSwapV2Pair is IGlennSwapV2Pair, GlennSwapV2ERC20 {
     ) external lock {
         require(
             amount0Out > 0 || amount1Out > 0,
-            "GlennSwapV2: INSUFFICIENT_OUTPUT_AMOUNT"
+            "GlennSwap: INSUFFICIENT_OUTPUT_AMOUNT"
         );
         (uint112 _reserve0, uint112 _reserve1, ) = getReserves(); // gas savings
         require(
             amount0Out < _reserve0 && amount1Out < _reserve1,
-            "GlennSwapV2: INSUFFICIENT_LIQUIDITY"
+            "GlennSwap: INSUFFICIENT_LIQUIDITY"
         );
 
         uint balance0;
@@ -550,11 +550,11 @@ contract GlennSwapV2Pair is IGlennSwapV2Pair, GlennSwapV2ERC20 {
             // scope for _token{0,1}, avoids stack too deep errors
             address _token0 = token0;
             address _token1 = token1;
-            require(to != _token0 && to != _token1, "GlennSwapV2: INVALID_TO");
+            require(to != _token0 && to != _token1, "GlennSwap: INVALID_TO");
             if (amount0Out > 0) _safeTransfer(_token0, to, amount0Out); // optimistically transfer tokens
             if (amount1Out > 0) _safeTransfer(_token1, to, amount1Out); // optimistically transfer tokens
             if (data.length > 0)
-                IGlennSwapV2Callee(to).glennSwapV2Call(
+                IUniswapV2Callee(to).GlennSwapCall(
                     msg.sender,
                     amount0Out,
                     amount1Out,
@@ -571,7 +571,7 @@ contract GlennSwapV2Pair is IGlennSwapV2Pair, GlennSwapV2ERC20 {
             : 0;
         require(
             amount0In > 0 || amount1In > 0,
-            "GlennSwapV2: INSUFFICIENT_INPUT_AMOUNT"
+            "GlennSwap: INSUFFICIENT_INPUT_AMOUNT"
         );
         {
             // scope for reserve{0,1}Adjusted, avoids stack too deep errors
@@ -580,7 +580,7 @@ contract GlennSwapV2Pair is IGlennSwapV2Pair, GlennSwapV2ERC20 {
             require(
                 balance0Adjusted.mul(balance1Adjusted) >=
                     uint(_reserve0).mul(_reserve1).mul(1000 ** 2),
-                "GlennSwapV2: K"
+                "GlennSwap: K"
             );
         }
 
@@ -615,11 +615,11 @@ contract GlennSwapV2Pair is IGlennSwapV2Pair, GlennSwapV2ERC20 {
     }
 }
 
-contract GlennSwapV2Factory is IGlennSwapV2Factory {
+contract GlennSwapFactory is IUniswapV2Factory {
     address public feeTo;
     address public feeToSetter;
     bytes32 public constant INIT_CODE_PAIR_HASH =
-        keccak256(abi.encodePacked(type(GlennSwapV2Pair).creationCode));
+        keccak256(abi.encodePacked(type(GlennSwapPair).creationCode));
 
     mapping(address => mapping(address => address)) public getPair;
     address[] public allPairs;
@@ -643,21 +643,21 @@ contract GlennSwapV2Factory is IGlennSwapV2Factory {
         address tokenA,
         address tokenB
     ) external returns (address pair) {
-        require(tokenA != tokenB, "GlennSwapV2: IDENTICAL_ADDRESSES");
+        require(tokenA != tokenB, "GlennSwap: IDENTICAL_ADDRESSES");
         (address token0, address token1) = tokenA < tokenB
             ? (tokenA, tokenB)
             : (tokenB, tokenA);
-        require(token0 != address(0), "GlennSwapV2: ZERO_ADDRESS");
+        require(token0 != address(0), "GlennSwap: ZERO_ADDRESS");
         require(
             getPair[token0][token1] == address(0),
-            "GlennSwapV2: PAIR_EXISTS"
+            "GlennSwap: PAIR_EXISTS"
         ); // single check is sufficient
-        bytes memory bytecode = type(GlennSwapV2Pair).creationCode;
+        bytes memory bytecode = type(GlennSwapPair).creationCode;
         bytes32 salt = keccak256(abi.encodePacked(token0, token1));
         assembly {
             pair := create2(0, add(bytecode, 32), mload(bytecode), salt)
         }
-        IGlennSwapV2Pair(pair).initialize(token0, token1);
+        IUniswapV2Pair(pair).initialize(token0, token1);
         getPair[token0][token1] = pair;
         getPair[token1][token0] = pair; // populate mapping in the reverse direction
         allPairs.push(pair);
@@ -665,12 +665,12 @@ contract GlennSwapV2Factory is IGlennSwapV2Factory {
     }
 
     function setFeeTo(address _feeTo) external {
-        require(msg.sender == feeToSetter, "GlennSwapV2: FORBIDDEN");
+        require(msg.sender == feeToSetter, "GlennSwap: FORBIDDEN");
         feeTo = _feeTo;
     }
 
     function setFeeToSetter(address _feeToSetter) external {
-        require(msg.sender == feeToSetter, "GlennSwapV2: FORBIDDEN");
+        require(msg.sender == feeToSetter, "GlennSwap: FORBIDDEN");
         feeToSetter = _feeToSetter;
     }
 }

@@ -6,7 +6,7 @@ A fork of UniswapV2.
 
 ### Sepolia Testnet
 
-GlennSwapV2Factory: https://sepolia.etherscan.io/address/0x5165ef049678e15cd95e13e12cb24249cf47c789  
-WETH9: https://sepolia.etherscan.io/address/0x800ac88f9ce676dd9a2da057e8ec7bf21d50bbb9  
-GlennSwapV2Router02: https://sepolia.etherscan.io/address/0x1c7f33e39ab7a855fd2544570e0c9b584f81064f  
-Multicall: https://sepolia.etherscan.io/address/0xab49269cbd555e2ecf01227d179724c76ac377d5  
+GlennSwapFactory: https://sepolia.etherscan.io/address/0xd1580edc20cc54ad3beb42a020187b3076b9bd62  
+WETH9: https://sepolia.etherscan.io/address/0x4e1B2c561796951F76CEe2748b910a6d69ff985C  
+GlennSwapRouter02: https://sepolia.etherscan.io/address/0x147b072d57bd5bb762871e13766dba19aef7ba8e  
+Multicall: https://sepolia.etherscan.io/address/0x7468edc3e94f8e6d1d198497c8b93ad638468047  
